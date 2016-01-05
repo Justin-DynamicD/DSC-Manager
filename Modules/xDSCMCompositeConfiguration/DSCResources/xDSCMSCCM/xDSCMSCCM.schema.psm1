@@ -2,7 +2,7 @@ Configuration xDSCMSCCM
 { 
 
     param (
-        [Parameter(Mandatory=$false)][String]$Role,
+        [Parameter(Mandatory=$false)][Array]$Role,
         [Parameter(Mandatory=$false)][String]$DSLPath,
         [Parameter(Mandatory=$false)][String]$SCCMAdministratorCredential
         )

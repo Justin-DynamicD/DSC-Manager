@@ -21,6 +21,7 @@
         xDSCMDC DCConfig
         {
             Role = $Node.Role
+            DomainName = $Node.DomainName
         }
     }
 

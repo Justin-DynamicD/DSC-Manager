@@ -1,10 +1,10 @@
 Configuration xDSCMBase
 {
     param (
-        [Parameter(Mandatory=$false)][ValidateNotNullorEmpty()][array]$DNSServerAddresses,
+        [Parameter(Mandatory=$false)][array]$DNSServerAddresses,
         [Parameter(Mandatory=$true)][ValidateNotNullorEmpty()][string]$Location
         )
-    
+   
     Import-DSCResource -ModuleName xNetworking
 
     If ($DNSServerAddresses) {

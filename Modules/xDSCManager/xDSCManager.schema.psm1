@@ -333,6 +333,7 @@ param(
 #This function creates Variables storing credentials
 Function New-PasswordScriptVariable
 {
+[cmdletBinding()]
 param(
     [Parameter(Mandatory=$True)][String]$Name,
     [Parameter(Mandatory=$True)][String]$User,
@@ -340,11 +341,12 @@ param(
     )
 
     $SecurePass = ConvertTo-SecureString $Password -AsPlainText -Force
-    Invoke-Expression ("`$Script:$Name = New-Object System.Management.Automation.PSCredential $User, `$SecurePass")
+    $cred = New-Object System.Management.Automation.PSCredential $User, $SecurePass
+    $PSCmdlet.SessionState.PSVariable.Set($Name, $cred)
 }
 
 #This function is to create MOF files and copy them to the Pull Server from the specific working directory
-function Update-DSCMPullServer 
+function Update-DSCMPullServer
 {
 param(
     [Parameter(Mandatory=$true)][String]$Configuration,

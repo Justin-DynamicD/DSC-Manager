@@ -5,6 +5,7 @@ $LabHosts = @{
             NodeName = "dc-01"
             Service = 'DC'
             Role = 'PDC'
+            DomainName = "lab.transformingintoaservice.com"
             DNSServerAddresses = "192.168.1.102","127.0.0.1"
             Location = 'Private'
         },
@@ -12,6 +13,8 @@ $LabHosts = @{
         @{ 
             NodeName = "dc-02"
             Service = 'DC'
+	    Role = 'DC'
+            DomainName = "lab.transformingintoaservice.com"
             DNSServerAddresses = "192.168.1.100","127.0.0.1"
             Location = 'Private'
         },
@@ -19,6 +22,7 @@ $LabHosts = @{
          @{ 
             NodeName = "runbook-01"
             Service = 'DSC'
+            DomainName = "lab.transformingintoaservice.com"
             Location = 'Private'
         }
     ); 

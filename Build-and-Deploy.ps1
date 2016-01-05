@@ -45,4 +45,4 @@ $UpdatedConfigurationData = Update-DSCMConfigurationData -ConfigurationData $Con
 Update-DSCMPullServer -Configuration $Configuration -ConfigurationFile $ConfigurationFile -ConfigurationData $UpdatedConfigurationData -PasswordData $PasswordData -PullServerConfiguration $PullServerConfiguration
 
 #Update Pull Server module repo with current modules from the local repo
-Update-DSCMModules -SourceModules $SourceModules -PullServerModules $PullServerModules
+#Update-DSCMModules -SourceModules $SourceModules -PullServerModules $PullServerModules

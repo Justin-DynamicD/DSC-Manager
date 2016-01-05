@@ -1,14 +1,64 @@
-Configuration xDSCMDC
-{
-    Param (
-        [Parameter(Mandatory=$false)][String]$Role
-    )
+configuration xDSCMDC 
+{ 
+    [cmdletBinding()]
+    param (
+        [Parameter(Mandatory=$false)][Array]$Role,
+        [Parameter(Mandatory=$true)][String]$DomainName,
+        [Parameter(Mandatory=$false)][Int]$RetryCount=20,
+        [Parameter(Mandatory=$false)][Int]$RetryIntervalSec=30,
+        [Parameter(Mandatory=$false)][pscredential]$DCSafeModeAdministratorCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCSafeModeAdministratorCred'), 
+        [Parameter(Mandatory=$false)][pscredential]$DCDomainCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCDomainCred'),
+        [Parameter(Mandatory=$false)][pscredential]$DCDNSDelegationCred =$PSCmdlet.SessionState.PSVariable.GetValue('DCDNSDelegationCred')
+        ) 
 
-    WindowsFeature AD-Domain-Services {
-            Ensure = "Present"
-            Name   = "AD-Domain-Services"            
+    Import-DscResource -ModuleName xActiveDirectory
+
+    If ($Role -contains "PDC") {
+        WindowsFeature ADDSInstall 
+        { 
+            Ensure = "Present" 
+            Name = "AD-Domain-Services" 
+        } 
+        xADDomain FirstDS 
+        { 
+            DomainName = $DomainName 
+            DomainAdministratorCredential = $DCDomainCred 
+            SafemodeAdministratorPassword = $DCSafeModeAdministratorCred 
+            DnsDelegationCredential = $DCDNSDelegationCred 
+            DependsOn = "[WindowsFeature]ADDSInstall" 
+        } 
+        xWaitForADDomain DscForestWait 
+        { 
+            DomainName = $DomainName
+            DomainUserCredential = $DCDomainCred 
+            RetryCount = $RetryCount 
+            RetryIntervalSec = $RetryIntervalSec 
+            DependsOn = "[xADDomain]FirstDS" 
+        } 
+    } #End PDC
+
+    If ($Role -contains "DC") { 
+        WindowsFeature ADDSInstall 
+        { 
+            Ensure = "Present" 
+            Name = "AD-Domain-Services" 
         }
 
-    If ($Role -contains "PDC"){
-        } #End If
-}
+        xWaitForADDomain DscForestWait 
+        { 
+            DomainName = $DomainName
+            DomainUserCredential = $DCDomainCred 
+            RetryCount = $RetryCount 
+            RetryIntervalSec = $RetryIntervalSec 
+            DependsOn = "[WindowsFeature]ADDSInstall" 
+        }
+
+        xADDomainController SecondDC 
+        { 
+            DomainName = $DomainName 
+            DomainAdministratorCredential = $DCDomainCred 
+            SafemodeAdministratorPassword = $DCSafeModeAdministratorCred
+            DependsOn = "[xWaitForADDomain]DscForestWait" 
+        } 
+    } #End DC
+} 
