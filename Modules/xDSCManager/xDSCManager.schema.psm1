@@ -251,11 +251,18 @@ function Update-DSCMModules
     param
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
+        [Parameter(Mandatory=$false)][String]$Module,
         [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
     )
  
     # Read the module names & versions
-    $SourceList = (Get-ChildItem -Directory $SourceModules).Name
+    If ($Module -and (get-module $module -listavailable)) {
+        $SourceList = (Get-ChildItem -Directory $SourceModules).Name
+        $SourceModules = (Get-item (get-module xdscmanager -listavailable).Path).Directory.Parent.Fullname
+        }
+    Else {
+        $SourceList = (Get-ChildItem -Directory $SourceModules).Name
+        }
     foreach ($SourceModule in $SourceList) {
         write-verbose "Check module $SourceModule"
         $module = Import-Module $SourceModules\$SourceModule -PassThru
@@ -386,7 +393,7 @@ param(
 }
 
 #This function approves pending agents for use by DSC
-Function Add-xDSCMAgent
+Function Add-DSCMAgent
 {
 param (
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
@@ -408,11 +415,69 @@ param (
             }
         Catch {
             Throw "Error trying to genrate the request file!"
+            exit
             }
         }
     Else {
         Write-Output "Cannot find a request for $NodeName, exiting"
         exit
         }
-    Write-Output "Node $NodeName has been approved for use.  Run Initialize-Agent script again."
+    If (!$Silent) {Write-Output "Node $NodeName has been approved for use.  Run Install-Node script again."}
     }
+
+#This function pulls node information back from the pull server
+function Request-NodeInformation
+{
+    Param (
+        [Parameter(Mandatory=$false)][string]$URL = "http://localhost:9080/PSDSCComplianceServer.svc/Status",                         
+        [Parameter(Mandatory=$false)][string]$ContentType = "application/json"
+        )
+
+    #Feedback
+    Write-Verbose "Querying node information from pull server URL  = $URL"
+    Write-Verbose "Querying node status in content type  = $ContentType "
+
+    #Gather data from reporting server
+    $response = Invoke-WebRequest -Uri $URL -Method Get -ContentType $ContentType -UseDefaultCredentials -Headers @{Accept = $ContentType}
+
+    #Report on Nulldata
+    if($response.StatusCode -ne 200) {
+        Write-Verbose "node information was not retrieved."
+        }
+
+    #Spit out the report
+    $ReturnData = ConvertFrom-Json $response.Content
+
+    #Inject information from the repo
+    <#
+    $ReturnData.value | ForEach-Object -Process {
+            $NodeName = Request-DSCMGUIDMapping -GUIDName $_.ConfigurationID
+            write-host $NodeName
+            if ($NodeName) {
+                $_.NodeName = $NodeName
+                }
+            }
+    #>
+
+    return $ReturnData.value | Format-Table TargetName, ConfigurationId, ServerChecksum, NodeCompliant, LastComplianceTime, StatusCode 
+}
+
+#reporting function to translate GUID to name
+function Request-DSCMGUIDMapping
+{
+    param(
+    [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$GUIDName
+    )
+
+    If (Test-Path $FileName) {
+        $CSVFile = (import-csv $FileName)
+        $CSVFile | ForEach-Object { if ($_.NodeGUID -eq $GUIDName) {$returnname  = $_.NodeName} }
+        }
+    Else {
+        write-verbose "the file $FileName cannot be found so there is nothing to return"
+        exit
+        }
+ 
+    if ($returnname) {return $returnname}
+}

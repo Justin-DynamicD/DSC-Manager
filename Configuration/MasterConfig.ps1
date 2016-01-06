@@ -1,18 +1,11 @@
 ﻿Configuration MasterConfig
 {
     Import-DscResource -Module xDSCMCompositeConfiguration
-    
-    Node $AllNodes.where{$_.DNSServerAddresses}.NodeName {    
+
+    Node $AllNodes.NodeName {    
         xDSCMBase BaseConfig
         {
             DNSServerAddresses = $Node.DNSServerAddresses
-            Location =$Node.Location
-        }
-    }
-    
-    Node $AllNodes.where{!$_.DNSServerAddresses}.NodeName {    
-        xDSCMBase BaseConfig
-        {
             Location =$Node.Location
         }
     }

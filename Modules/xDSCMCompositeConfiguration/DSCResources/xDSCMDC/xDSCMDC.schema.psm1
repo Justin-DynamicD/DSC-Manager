@@ -6,9 +6,9 @@ configuration xDSCMDC
         [Parameter(Mandatory=$true)][String]$DomainName,
         [Parameter(Mandatory=$false)][Int]$RetryCount=20,
         [Parameter(Mandatory=$false)][Int]$RetryIntervalSec=30,
-        [Parameter(Mandatory=$false)][pscredential]$DCSafeModeAdministratorCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCSafeModeAdministratorCred'), 
-        [Parameter(Mandatory=$false)][pscredential]$DCDomainCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCDomainCred'),
-        [Parameter(Mandatory=$false)][pscredential]$DCDNSDelegationCred =$PSCmdlet.SessionState.PSVariable.GetValue('DCDNSDelegationCred')
+        [Parameter(Mandatory=$false)][ValidateNotNullorEmpty()][pscredential]$DCSafeModeAdministratorCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCSafeModeAdministratorCred'), 
+        [Parameter(Mandatory=$false)][ValidateNotNullorEmpty()][pscredential]$DCDomainCred = $PSCmdlet.SessionState.PSVariable.GetValue('DCDomainCred'),
+        [Parameter(Mandatory=$false)][ValidateNotNullorEmpty()][pscredential]$DCDNSDelegationCred =$PSCmdlet.SessionState.PSVariable.GetValue('DCDNSDelegationCred')
         ) 
 
     Import-DscResource -ModuleName xActiveDirectory
