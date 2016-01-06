@@ -11,7 +11,7 @@
 $Configuration = "MasterConfig"
 $ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1"
 $ConfigurationData = "LabHosts"
-$ConfigurationDataPath = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData"
+$ConfigurationDataFile = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData\Labhosts.ps1"
 $SourceModules = "$env:PROGRAMFILES\WindowsPowershell\Modules"
 $PullServerModules = "$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
 $PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration"
@@ -36,10 +36,10 @@ if(!(Get-Module xDSCManager)) {
 ######################################################################################
 
 #Update the CSV table with missing Server,GUID, and Thumbprint information
-Update-DSCMTable -ConfigurationData $ConfigurationData -ConfigurationDataPath $ConfigurationDataPath -FileName $PullServerNodeCSV -CertStore $PullServerCertStore
+Update-DSCMTable -ConfigurationData $ConfigurationData -ConfigurationDataFile $ConfigurationDataFile -FileName $PullServerNodeCSV -CertStore $PullServerCertStore
 
 #Load ConfigurationData then add thumbprint information if available for final configuration application
-$UpdatedConfigurationData = Update-DSCMConfigurationData -ConfigurationData $ConfigurationData -ConfigurationDataPath $ConfigurationDataPath -FileName $PullServerNodeCSV
+$UpdatedConfigurationData = Update-DSCMConfigurationData -ConfigurationData $ConfigurationData -ConfigurationDataFile $ConfigurationDataFile -FileName $PullServerNodeCSV
 
 #Create All Configuration MOFs based on updated data and place in respective Pull Server Configuration
 Update-DSCMPullServer -Configuration $Configuration -ConfigurationFile $ConfigurationFile -ConfigurationData $UpdatedConfigurationData -PasswordData $PasswordData -PullServerConfiguration $PullServerConfiguration

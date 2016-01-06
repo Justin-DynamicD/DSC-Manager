@@ -86,31 +86,29 @@ function Update-DSCMTable
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory=$false)][String]$ConfigurationDataPath = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData",
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationData
     )
 
-    #Load Each ConfigurationData file found into memory and execute updates
-    ForEach ($HashTable in $ConfigurationData) {
-        Try {
-            . $ConfigurationDataPath\$HashTable.ps1
-            If ($CompiledData -eq $NULL) {
-                Invoke-Expression "`$CompiledData = `$$HashTable"
-                }
-            Else {
-                Invoke-Expression "`$CompiledData.AllNodes = `$CompiledData.AllNodes + `$$HashTable.AllNodes"
-                }
-            }
-        Catch {
-            Throw "Cannot find configuration data $Hashtable"
-            }
+    #Load ConfigurationData file found into memory and execute updates
+    Try {
+        . $ConfigurationDataFile
+        Invoke-Expression "`$CompiledData =`$$ConfigurationData"
+        }
+    Catch {
+        Throw "Cannot find configuration data file $ConfigurationDataFile"
+        }
 
-        #Update CSVTable By calling other functions
+    #Update CSVTable By calling other functions
+    IF ($CompiledData) {
         $CompiledData.AllNodes | ForEach-Object -Process {
             $CurrNode = $_.NodeName
             Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName -Silent
             Update-DSCMCertMapping -NodeName $CurrNode -FileName $FileName -CertStore $CertStore -Silent
             }
+        }
+    Else {
+        Throw "Cannot find the variable $ConfigurationData"
         }
 }
 
@@ -120,25 +118,18 @@ function Update-DSCMConfigurationData
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory=$false)][String]$ConfigurationDataPath = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData",
+    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationData
     )
 
-    #Load Each ConfigurationData file found into memory and execute updates
-    $ReturnData = $Null
-    ForEach ($HashTable in $ConfigurationData) {
-        Try {
-            . $ConfigurationDataPath\$HashTable.ps1
-            If ($ReturnData -eq $NULL) {
-                Invoke-Expression "`$ReturnData = `$$HashTable"
-                }
-            Else {
-                Invoke-Expression "`$ReturnData.AllNodes = `$ReturnData.AllNodes + `$$HashTable.AllNodes"
-                }
-            }
-        Catch {
-            Throw "Cannot find configuration data $Hashtable"
-            }
+    #Load ConfigurationData file found into memory and execute updates
+    $ReturnData = $null
+    Try {
+        . $ConfigurationDataFile
+        $ReturnData = Invoke-Expression "`$$ConfigurationData"
+        }
+    Catch {
+        Throw "Cannot find configuration data file $ConfigurationDataFile"
         }
         
         #Update ReturnData By calling other functions
@@ -355,6 +346,7 @@ param(
 #This function is to create MOF files and copy them to the Pull Server from the specific working directory
 function Update-DSCMPullServer
 {
+[cmdletBinding()]
 param(
     [Parameter(Mandatory=$true)][String]$Configuration,
     [Parameter(Mandatory=$true)][HashTable]$ConfigurationData,
@@ -445,21 +437,23 @@ function Request-NodeInformation
         Write-Verbose "node information was not retrieved."
         }
 
-    #Spit out the report
+    #Inject information from the repo    
     $ReturnData = ConvertFrom-Json $response.Content
-
-    #Inject information from the repo
-    <#
+    $CompiledData = $null
     $ReturnData.value | ForEach-Object -Process {
-            $NodeName = Request-DSCMGUIDMapping -GUIDName $_.ConfigurationID
-            write-host $NodeName
-            if ($NodeName) {
-                $_.NodeName = $NodeName
-                }
-            }
-    #>
+        $Object = New-Object -TypeName PSObject
+		$Object | Add-Member -Name "Node Name" -MemberType NoteProperty -Value (Request-DSCMGUIDMapping -GUIDName $_.ConfigurationID)
+		$Object | Add-Member -Name "Target Name" -MemberType NoteProperty -Value $_.TargetName
+		$Object | Add-Member -Name "GUID" -MemberType NoteProperty -Value $_.ConfigurationId
+        $Object | Add-Member -Name "Checksum" -MemberType NoteProperty -Value $_.ServerChecksum
+        $Object | Add-Member -Name "Node Compliant" -MemberType NoteProperty -Value $_.NodeCompliant
+        $Object | Add-Member -Name "Last Compliance" -MemberType NoteProperty -Value $_.LastComplianceTime
+        $Object | Add-Member -Name "Status Code" -MemberType NoteProperty -Value $_.StatusCode
+        [Array]$CompiledData+=$Object
+        }
 
-    return $ReturnData.value | Format-Table TargetName, ConfigurationId, ServerChecksum, NodeCompliant, LastComplianceTime, StatusCode 
+    #Spit out the report
+    return $CompiledData | Format-Table
 }
 
 #reporting function to translate GUID to name
