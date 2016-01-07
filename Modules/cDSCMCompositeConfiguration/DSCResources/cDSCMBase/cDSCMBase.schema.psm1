@@ -1,4 +1,4 @@
-Configuration xDSCMBase
+Configuration cDSCMBase
 {
     param (
         [Parameter(Mandatory=$false)][array]$DNSServerAddresses,

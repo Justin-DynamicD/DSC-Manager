@@ -1,4 +1,4 @@
-Configuration xDSCMSCCM
+Configuration cDSCMSCCM
 { 
 
     param (

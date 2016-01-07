@@ -1,17 +1,17 @@
 ﻿Configuration MasterConfig
 {
-    Import-DscResource -Module xDSCMCompositeConfiguration
+    Import-DscResource -Module cDSCMCompositeConfiguration
 
     Node $AllNodes.NodeName {    
-        xDSCMBase BaseConfig
+        cDSCMBase BaseConfig
         {
             DNSServerAddresses = $Node.DNSServerAddresses
             Location =$Node.Location
         }
     }
 
-    Node $AllNodes.Where{$_.Service -eq "DC"}.NodeName {
-        xDSCMDC DCConfig
+    Node $AllNodes.Where{$_.Service -eq "ActiveDirectory"}.NodeName {
+        cDSCMActiveDirectory DCConfig
         {
             Role = $Node.Role
             DomainName = $Node.DomainName
@@ -19,7 +19,7 @@
     }
 
     Node $AllNodes.Where{$_.Service -eq "SCCM"}.NodeName {
-        xDSCMSCCM SCCMConfig
+        cDSCMSCCM SCCMConfig
         {
             Role = $Node.Role
             DSLPath = $Node.DSLPath

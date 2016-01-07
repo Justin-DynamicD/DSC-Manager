@@ -3,7 +3,7 @@ $LabHosts = @{
     AllNodes = @( 
         @{ 
             NodeName = "dc-01"
-            Service = 'DC'
+            Service = 'ActiveDirectory'
             Role = 'PDC'
             DomainName = "lab.transformingintoaservice.com"
             DNSServerAddresses = "192.168.1.102","127.0.0.1"
@@ -12,7 +12,7 @@ $LabHosts = @{
 
         @{ 
             NodeName = "dc-02"
-            Service = 'DC'
+            Service = 'ActiveDirectory'
 	    Role = 'DC'
             DomainName = "lab.transformingintoaservice.com"
             DNSServerAddresses = "192.168.1.100","127.0.0.1"
