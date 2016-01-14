@@ -353,6 +353,7 @@ function Update-DSCMPullServer
 param(
     [Parameter(Mandatory=$true)][String]$Configuration,
     [Parameter(Mandatory=$true)][HashTable]$ConfigurationData,
+    [Parameter(Mandatory=$false)][String]$PasswordData,
     [Parameter(Mandatory=$false)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
     [Parameter(Mandatory=$false)][String]$WorkingPath = $env:TEMP
@@ -366,6 +367,16 @@ param(
     Catch {
         Throw "error loading DSC Configuration $ConfigurationFile"
         }
+    
+    If ($PasswordData) {
+        Write-Verbose -Message "Importing Passwords..."
+        Try {
+            Invoke-Expression ". Import-PasswordXML -XMLFile `$PasswordData"
+            }
+        Catch {
+            Throw "error loading passwords from file $PasswordData"
+            }
+        } #End $PasswordData
 
     #generate MOF files using Configurationdata and output to the appropriate temporary path
     Write-Verbose -Message "Generating MOF using Configurationdata and output to $WorkingPath..."

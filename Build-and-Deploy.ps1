@@ -14,7 +14,8 @@ $ConfigurationData = "LabHosts"
 $ConfigurationDataFile = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData\Labhosts.ps1"
 $SourceModules = "$env:PROGRAMFILES\WindowsPowershell\Modules"
 $PullServerModules = "$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
-$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration"
+#$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration"
+$PullServerConfiguration = "C:\_test"
 $PullServerCertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates"
 $PullServerNodeCSV = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv"
 $PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
@@ -40,9 +41,6 @@ Update-DSCMTable -ConfigurationData $ConfigurationData -ConfigurationDataFile $C
 
 #Load ConfigurationData then add thumbprint information if available for final configuration application
 $UpdatedConfigurationData = Update-DSCMConfigurationData -ConfigurationData $ConfigurationData -ConfigurationDataFile $ConfigurationDataFile -FileName $PullServerNodeCSV
-
-#Import all passwords from XML file into user space
-Import-PasswordXML -XMLFile $PasswordData
 
 #Create All Configuration MOFs based on updated data and place in respective Pull Server Configuration
 Update-DSCMPullServer -Configuration $Configuration -ConfigurationFile $ConfigurationFile -ConfigurationData $UpdatedConfigurationData -PullServerConfiguration $PullServerConfiguration

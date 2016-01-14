@@ -21,5 +21,11 @@ Configuration cDSCMBase
             InterfaceAlias = "Ethernet"
             AddressFamily = "IPV4"
             }
+
+        xDnsConnectionSuffix DNSuffixPrivate {
+            InterfaceAlias = "Ethernet"
+            ConnectionSpecificSuffix = "lab.transformingintoaservice.com"
+            }
+
         }
 }
