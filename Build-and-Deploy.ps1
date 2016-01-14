@@ -41,8 +41,11 @@ Update-DSCMTable -ConfigurationData $ConfigurationData -ConfigurationDataFile $C
 #Load ConfigurationData then add thumbprint information if available for final configuration application
 $UpdatedConfigurationData = Update-DSCMConfigurationData -ConfigurationData $ConfigurationData -ConfigurationDataFile $ConfigurationDataFile -FileName $PullServerNodeCSV
 
+#Import all passwords from XML file into user space
+Import-PasswordXML -XMLFile $PasswordData
+
 #Create All Configuration MOFs based on updated data and place in respective Pull Server Configuration
-Update-DSCMPullServer -Configuration $Configuration -ConfigurationFile $ConfigurationFile -ConfigurationData $UpdatedConfigurationData -PasswordData $PasswordData -PullServerConfiguration $PullServerConfiguration
+Update-DSCMPullServer -Configuration $Configuration -ConfigurationFile $ConfigurationFile -ConfigurationData $UpdatedConfigurationData -PullServerConfiguration $PullServerConfiguration
 
 #Update Pull Server module repo with current modules from the local repo
 #Update-DSCMModules -SourceModules $SourceModules -PullServerModules $PullServerModules

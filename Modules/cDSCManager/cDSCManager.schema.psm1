@@ -329,18 +329,21 @@ param(
     }
 
 #This function creates Variables storing credentials
-Function New-PasswordScriptVariable
+Function Import-PasswordXML
 {
 [cmdletBinding()]
 param(
-    [Parameter(Mandatory=$True)][String]$Name,
-    [Parameter(Mandatory=$True)][String]$User,
-    [Parameter(Mandatory=$True)][String]$Password
+    [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
     )
 
-    $SecurePass = ConvertTo-SecureString $Password -AsPlainText -Force
-    $cred = New-Object System.Management.Automation.PSCredential $User, $SecurePass
-    $PSCmdlet.SessionState.PSVariable.Set($Name, $cred)
+    #Generate Password Variables from XMLData
+    Write-Verbose -Message "Loading Passwords into secure string variables..."
+    $Config = [XML](Get-Content $XMLFile)
+    $Config.Credentials | ForEach-Object {$_.Variable} | Where-Object {$_.Name -ne $null} | ForEach-Object {
+        $SecurePass = ConvertTo-SecureString $_.Password -AsPlainText -Force
+        $cred = New-Object System.Management.Automation.PSCredential $_.User, $SecurePass
+        $PSCmdlet.SessionState.PSVariable.Set($_.Name, $cred)
+        } #End Config Loop
 }
 
 #This function is to create MOF files and copy them to the Pull Server from the specific working directory
@@ -350,7 +353,6 @@ function Update-DSCMPullServer
 param(
     [Parameter(Mandatory=$true)][String]$Configuration,
     [Parameter(Mandatory=$true)][HashTable]$ConfigurationData,
-    [Parameter(Mandatory=$false)][String]$PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml",
     [Parameter(Mandatory=$false)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
     [Parameter(Mandatory=$false)][String]$WorkingPath = $env:TEMP
@@ -364,11 +366,6 @@ param(
     Catch {
         Throw "error loading DSC Configuration $ConfigurationFile"
         }
-
-    #Generate Password Variables from PasswordData
-    Write-Verbose -Message "Loading Passwords into secure string variables..."
-    $Config = [XML] (Get-Content "$PasswordData")
-    $Config.Credentials | ForEach-Object {$_.Variable} | Where-Object {$_.Name -ne $null} | ForEach-Object {New-PasswordScriptVariable -Name $_.Name -User $_.User -Password $_.Password}
 
     #generate MOF files using Configurationdata and output to the appropriate temporary path
     Write-Verbose -Message "Generating MOF using Configurationdata and output to $WorkingPath..."
