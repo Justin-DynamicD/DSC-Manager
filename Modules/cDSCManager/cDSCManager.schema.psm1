@@ -149,6 +149,7 @@ function Update-DSCMConfigurationData
 #This function is to update and maintain the Host-to-GUID mapping to ease management.
 function Update-DSCMGUIDMapping
 {
+    [cmdletBinding()]
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$NodeName,
@@ -159,36 +160,40 @@ function Update-DSCMGUIDMapping
         $CSVFile = (import-csv $FileName)
         If(!($CSVFile | where-object {$_.NodeName -eq $NodeName})) {
             $NodeGUID = [guid]::NewGuid()
+            Write-Verbose -Message "Cannot Find Node $NodeName, writing new entry with GUID $NodeGUID"
             $NewLine = "{0},{1}" -f $NodeName,$NodeGUID
             $NewLine | add-content -path $FileName
-            }
+            } #End If
         Else {
             $CSVFile | forEach-Object {
                 If (($_.NodeName -eq $NodeName) -and !$_.NodeGUID) {
                     $NodeGUID = [guid]::NewGuid()
+                    Write-Verbose -Message "Node $NodeName was found, adding GUID $NodeGUID"
                     $_.NodeGUID = $NodeGUID
                     }
                 ElseIf (($_.NodeName -eq $NodeName) -and $_.NodeGUID)  {
+                    Write-Verbose -Message "All Entries present"
                     $NodeGUID = $_.NodeGuid
                     }
-            If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
+                If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
                 $CSVFile | Export-CSV $FileName -Delimiter ','
                 }
-            }
+                } #End ForEach
+            } #End Else
         if(!($Silent)) {
-            return,$NodeGUID
+            return,[String]$NodeGUID
             }
-        }
-    }
+        }#End File Exists
+
     Else {
         write-verbose "the file $FileName cannot be found so there is nothing to return"
-        }
- 
+        }#End File Missing
 }
 
 #This function is to update and maintain the Certificate-to-host mapping to ease management
 function Update-DSCMCertMapping
 {
+[cmdletBinding()]
 param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
@@ -229,11 +234,11 @@ param(
         if(!($Silent)) {
             return,$Thumbprint
             }
-        }
+        }#End If Stores Exist
 
     Else {
         write-verbose "the file $FileName or $CertStore cannot be found so there is nothing to return"
-        }
+        }#End No Stores
     }
 
 #This function is automatically zip-up modules into the right format and place them into the DSC module folder
@@ -427,6 +432,7 @@ param(
 #This function approves pending agents for use by DSC
 Function Add-DSCMAgent
 {
+[cmdletBinding()]
 param (
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
@@ -460,6 +466,7 @@ param (
 #This function pulls node information back from the pull server
 function Request-NodeInformation
 {
+[cmdletBinding()]
     Param (
         [Parameter(Mandatory=$false)][string]$URL = "http://localhost:9080/PSDSCComplianceServer.svc/Status",                         
         [Parameter(Mandatory=$false)][string]$ContentType = "application/json"
@@ -499,6 +506,7 @@ function Request-NodeInformation
 #reporting function to translate GUID to name
 function Request-DSCMGUIDMapping
 {
+    [cmdletBinding()]
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$GUIDName
