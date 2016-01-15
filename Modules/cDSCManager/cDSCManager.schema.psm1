@@ -336,6 +336,38 @@ param(
     [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
     )
 
+    #Create sample XMLFile if it is missing
+    Write-Verbose "Checking/Adding XMLFile $XMLFile"
+    IF (!(Test-Path -Path $XMLFile)) {
+        Write-Verbose "File not found, creating dummy file"
+        Try {
+            $xmlWriter = New-Object System.XMl.XmlTextWriter($XMLFile,$Null)
+            #Set Format 
+            $xmlWriter.Formatting = 'Indented'
+            $xmlWriter.Indentation = 1
+            $XmlWriter.IndentChar = "`t"
+            #Create
+            $xmlWriter.WriteStartDocument()
+            #Start New Element array
+            $xmlWriter.WriteStartElement('Credentials')
+            #Add Stuff to it
+            $xmlWriter.WriteStartElement('Variable')
+            $xmlWriter.WriteAttributeString('Name', 'SCCMAdministratorCredential')
+            $xmlWriter.WriteAttributeString('User','Contoso\Administrator')
+            $xmlWriter.WriteAttributeString('Password','Password')
+            #End specific Entry
+            $xmlWriter.WriteEndElement()
+            #End larger element
+            $xmlWriter.WriteEndElement()
+            #Write to disk and let it go
+            $xmlWriter.Flush()
+            $xmlWriter.Close()
+            }
+        Catch {
+            Throw "Error creating sample xml File"
+            }
+        }#End Create XML If
+
     #Generate Password Variables from XMLData
     Write-Verbose -Message "Loading Passwords into secure string variables..."
     $Config = [XML](Get-Content $XMLFile)
