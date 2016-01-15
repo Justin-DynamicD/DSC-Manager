@@ -336,6 +336,38 @@ param(
     [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
     )
 
+    #Create sample XMLFile if it is missing
+    Write-Verbose "Checking/Adding XMLFile $XMLFile"
+    IF (!(Test-Path -Path $XMLFile)) {
+        Write-Verbose "File not found, creating dummy file"
+        Try {
+            $xmlWriter = New-Object System.XMl.XmlTextWriter($XMLFile,$Null)
+            #Set Format 
+            $xmlWriter.Formatting = 'Indented'
+            $xmlWriter.Indentation = 1
+            $XmlWriter.IndentChar = "`t"
+            #Create
+            $xmlWriter.WriteStartDocument()
+            #Start New Element array
+            $xmlWriter.WriteStartElement('Credentials')
+            #Add Stuff to it
+            $xmlWriter.WriteStartElement('Variable')
+            $xmlWriter.WriteAttributeString('Name', 'SCCMAdministratorCredential')
+            $xmlWriter.WriteAttributeString('User','Contoso\Administrator')
+            $xmlWriter.WriteAttributeString('Password','Password')
+            #End specific Entry
+            $xmlWriter.WriteEndElement()
+            #End larger element
+            $xmlWriter.WriteEndElement()
+            #Write to disk and let it go
+            $xmlWriter.Flush()
+            $xmlWriter.Close()
+            }
+        Catch {
+            Throw "Error creating sample xml File"
+            }
+        }#End Create XML If
+
     #Generate Password Variables from XMLData
     Write-Verbose -Message "Loading Passwords into secure string variables..."
     $Config = [XML](Get-Content $XMLFile)
@@ -353,6 +385,7 @@ function Update-DSCMPullServer
 param(
     [Parameter(Mandatory=$true)][String]$Configuration,
     [Parameter(Mandatory=$true)][HashTable]$ConfigurationData,
+    [Parameter(Mandatory=$false)][String]$PasswordData,
     [Parameter(Mandatory=$false)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
     [Parameter(Mandatory=$false)][String]$WorkingPath = $env:TEMP
@@ -366,6 +399,16 @@ param(
     Catch {
         Throw "error loading DSC Configuration $ConfigurationFile"
         }
+    
+    If ($PasswordData) {
+        Write-Verbose -Message "Importing Passwords..."
+        Try {
+            Invoke-Expression ". Import-PasswordXML -XMLFile `$PasswordData"
+            }
+        Catch {
+            Throw "error loading passwords from file $PasswordData"
+            }
+        } #End $PasswordData
 
     #generate MOF files using Configurationdata and output to the appropriate temporary path
     Write-Verbose -Message "Generating MOF using Configurationdata and output to $WorkingPath..."
