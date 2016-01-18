@@ -1,6 +1,7 @@
 #Creates the Certificate Store if missing.
 function Install-DSCMCertStores
 {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
         [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
@@ -83,11 +84,12 @@ function Install-DSCMCertStores
 #This function is to update and maintain the Host-to-GUID mapping table
 function Update-DSCMTable
 {
+    [CmdletBinding()]
     param(
-    [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
-    [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationData
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("FileName")][String]$PullServerNodeCSV = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("CertStore")][String]$PullServerCertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationData
     )
 
     #Load ConfigurationData file found into memory and execute updates
@@ -103,8 +105,8 @@ function Update-DSCMTable
     IF ($CompiledData) {
         $CompiledData.AllNodes | ForEach-Object -Process {
             $CurrNode = $_.NodeName
-            Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName -Silent
-            Update-DSCMCertMapping -NodeName $CurrNode -FileName $FileName -CertStore $CertStore -Silent
+            Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $PullServerNodeCSV -Silent
+            Update-DSCMCertMapping -NodeName $CurrNode -FileName $PullServerNodeCSV -CertStore $PullServerCertStore -Silent
             }
         }
     Else {
@@ -115,15 +117,19 @@ function Update-DSCMTable
 #This function returns an updated hashtable with GUID and cert information
 function Update-DSCMConfigurationData
 {
+    [CmdletBinding()]
     param(
-    [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
-    [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$ConfigurationData
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("PullServerNodeCSV")][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("PullServerCertStore")][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml",
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationData
     )
 
     #Load ConfigurationData file found into memory and execute updates
     $ReturnData = $null
+    $Wildcardinjection = $null
+
     Try {
         . $ConfigurationDataFile
         $ReturnData = Invoke-Expression "`$$ConfigurationData"
@@ -131,27 +137,46 @@ function Update-DSCMConfigurationData
     Catch {
         Throw "Cannot find configuration data file $ConfigurationDataFile"
         }
-        
+    
+    #Load Passwords into the wildcard object to merge into ConfigData
+    IF ($ReturnData.AllNodes.Where({$_.NodeName -eq "*"})) {
+         #$Wildcardinjection = $ReturnData.AllNodes.Where({$_.NodeName -eq "*"})
+        $returndata.AllNodes | ForEach-Object { IF ($_.NodeName -eq "*") {$Wildcardinjection= $_}}
+        $ReturnData.AllNodes = $ReturnData.AllNodes.Where{($_.NodeName -ne "*")}
+        }
+    Else {
+        #Create Missing Wildcard
+        $Wildcardinjection = @{}
+        $Wildcardinjection.NodeName = "*"
+        }
+    
+    #Merge Data
+    $Wildcardinjection+=Import-PasswordXML -XMLFile $PasswordData
+    $ReturnData.AllNodes+=$Wildcardinjection
+
+    #import-csv to speed the scan
+    $CSVFile = (import-csv $FileName)
         #Update ReturnData By calling other functions
         $ReturnData.AllNodes | ForEach-Object -Process {
             $CurrNode = $_.NodeName
-            If (Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName) {
+            If (($CSVFile.NodeName -contains $CurrNode) -and ($CurrNode -ne "*")) {
                 $_.NodeName = (Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName)
+                If (Update-DSCMCertMapping -NodeName $CurrNode) {
+                    $_.Thumbprint = (Update-DSCMCertMapping -NodeName $CurrNode)
+                    $_.CertificateFile = $CertStore+'\'+$CurrNode+'.cer'
+                    }
                 }
-            if (Update-DSCMCertMapping -NodeName $CurrNode) {
-                $_.Thumbprint = (Update-DSCMCertMapping -NodeName $CurrNode)
-                $_.CertificateFile = $CertStore+'\'+$CurrNode+'.cer'
-                }
-            }
+            }#End Per-Object Crawl
     return $ReturnData
 }
 
 #This function is to update and maintain the Host-to-GUID mapping to ease management.
 function Update-DSCMGUIDMapping
 {
+    [cmdletBinding()]
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$NodeName,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
     [switch]$Silent
     )
 
@@ -159,40 +184,44 @@ function Update-DSCMGUIDMapping
         $CSVFile = (import-csv $FileName)
         If(!($CSVFile | where-object {$_.NodeName -eq $NodeName})) {
             $NodeGUID = [guid]::NewGuid()
+            Write-Verbose -Message "Cannot Find Node $NodeName, writing new entry with GUID $NodeGUID"
             $NewLine = "{0},{1}" -f $NodeName,$NodeGUID
             $NewLine | add-content -path $FileName
-            }
+            } #End If
         Else {
             $CSVFile | forEach-Object {
                 If (($_.NodeName -eq $NodeName) -and !$_.NodeGUID) {
                     $NodeGUID = [guid]::NewGuid()
+                    Write-Verbose -Message "Node $NodeName was found, adding GUID $NodeGUID"
                     $_.NodeGUID = $NodeGUID
                     }
                 ElseIf (($_.NodeName -eq $NodeName) -and $_.NodeGUID)  {
+                    Write-Verbose -Message "All Entries present"
                     $NodeGUID = $_.NodeGuid
                     }
-            If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
+                If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
                 $CSVFile | Export-CSV $FileName -Delimiter ','
                 }
-            }
+                } #End ForEach
+            } #End Else
         if(!($Silent)) {
-            return,$NodeGUID
+            return,[String]$NodeGUID
             }
-        }
-    }
+        }#End File Exists
+
     Else {
         write-verbose "the file $FileName cannot be found so there is nothing to return"
-        }
- 
+        }#End File Missing
 }
 
 #This function is to update and maintain the Certificate-to-host mapping to ease management
 function Update-DSCMCertMapping
 {
+[cmdletBinding()]
 param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$NodeName,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
     [switch]$Silent
     )
 
@@ -229,16 +258,17 @@ param(
         if(!($Silent)) {
             return,$Thumbprint
             }
-        }
+        }#End If Stores Exist
 
     Else {
         write-verbose "the file $FileName or $CertStore cannot be found so there is nothing to return"
-        }
+        }#End No Stores
     }
 
 #This function is automatically zip-up modules into the right format and place them into the DSC module folder
 function Update-DSCMModules
 {
+    [CmdletBinding()]
     param
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
@@ -299,9 +329,10 @@ function Update-DSCMModules
 #This function is to import all certificates from the CertStore onto the local machine
 function Update-DSCMImportallCerts
 {
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$NodeName
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName
     )
 
     If (Install-DSCMCertStores -CertStore $CertStore -TestOnly) {
@@ -333,7 +364,8 @@ Function Import-PasswordXML
 {
 [cmdletBinding()]
 param(
-    [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
+    [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml",
+    [Parameter(Mandatory=$false)][Switch]$ToSession
     )
 
     #Create sample XMLFile if it is missing
@@ -369,26 +401,34 @@ param(
         }#End Create XML If
 
     #Generate Password Variables from XMLData
-    Write-Verbose -Message "Loading Passwords into secure string variables..."
+    Write-Verbose -Message "Loading Passwords from xml..."
+    $Passwords = @{}
     $Config = [XML](Get-Content $XMLFile)
     $Config.Credentials | ForEach-Object {$_.Variable} | Where-Object {$_.Name -ne $null} | ForEach-Object {
         $SecurePass = ConvertTo-SecureString $_.Password -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $_.User, $SecurePass
-        $PSCmdlet.SessionState.PSVariable.Set($_.Name, $cred)
-        } #End Config Loop
+        If ($ToSession) {    
+            $PSCmdlet.SessionState.PSVariable.Set($_.Name, $cred)
+            }
+        Else {
+            $Passwords.add($_.Name, $cred)
+            }
+        } #End ForEach Loop
+
+    #Return Hashtable
+    If (!$ToSession) {return $Passwords}
 }
 
 #This function is to create MOF files and copy them to the Pull Server from the specific working directory
 function Update-DSCMPullServer
 {
-[cmdletBinding()]
-param(
-    [Parameter(Mandatory=$true)][String]$Configuration,
-    [Parameter(Mandatory=$true)][HashTable]$ConfigurationData,
-    [Parameter(Mandatory=$false)][String]$PasswordData,
-    [Parameter(Mandatory=$false)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
-    [Parameter(Mandatory=$false)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
-    [Parameter(Mandatory=$false)][String]$WorkingPath = $env:TEMP
+    [cmdletBinding()]
+    param(
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][String]$Configuration,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][HashTable]$ConfigurationData,
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP
     )
 
     #Load DSC Configuration into script
@@ -399,16 +439,6 @@ param(
     Catch {
         Throw "error loading DSC Configuration $ConfigurationFile"
         }
-    
-    If ($PasswordData) {
-        Write-Verbose -Message "Importing Passwords..."
-        Try {
-            Invoke-Expression ". Import-PasswordXML -XMLFile `$PasswordData"
-            }
-        Catch {
-            Throw "error loading passwords from file $PasswordData"
-            }
-        } #End $PasswordData
 
     #generate MOF files using Configurationdata and output to the appropriate temporary path
     Write-Verbose -Message "Generating MOF using Configurationdata and output to $WorkingPath..."
@@ -427,11 +457,12 @@ param(
 #This function approves pending agents for use by DSC
 Function Add-DSCMAgent
 {
-param (
+    [cmdletBinding()]
+    param (
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
     [Parameter(Mandatory=$false)][String]$AgentReg = "$env:PROGRAMFILES\WindowsPowershell\DscService\AgentRegistration",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$NodeName,
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
     [switch]$Silent
     )
 
@@ -460,6 +491,7 @@ param (
 #This function pulls node information back from the pull server
 function Request-NodeInformation
 {
+    [cmdletBinding()]
     Param (
         [Parameter(Mandatory=$false)][string]$URL = "http://localhost:9080/PSDSCComplianceServer.svc/Status",                         
         [Parameter(Mandatory=$false)][string]$ContentType = "application/json"
@@ -499,9 +531,10 @@ function Request-NodeInformation
 #reporting function to translate GUID to name
 function Request-DSCMGUIDMapping
 {
+    [cmdletBinding()]
     param(
     [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
-    [Parameter(Mandatory)][ValidateNotNullOrEmpty()][String]$GUIDName
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$GUIDName
     )
 
     If (Test-Path $FileName) {
