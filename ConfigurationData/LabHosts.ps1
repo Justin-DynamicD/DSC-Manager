@@ -1,6 +1,7 @@
 ﻿# These variables are specfic settings for each target node that get applied to the DSC configiguration template
 $LabHosts = @{ 
-    AllNodes = @( 
+    AllNodes = @(
+        
         @{ 
             NodeName = "dc-01"
             Service = 'ActiveDirectory'

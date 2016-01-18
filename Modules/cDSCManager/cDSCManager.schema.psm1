@@ -128,6 +128,8 @@ function Update-DSCMConfigurationData
 
     #Load ConfigurationData file found into memory and execute updates
     $ReturnData = $null
+    $Wildcardinjection = $null
+
     Try {
         . $ConfigurationDataFile
         $ReturnData = Invoke-Expression "`$$ConfigurationData"
@@ -138,14 +140,19 @@ function Update-DSCMConfigurationData
     
     #Load Passwords into the wildcard object to merge into ConfigData
     IF ($ReturnData.AllNodes.Where({$_.NodeName -eq "*"})) {
-        $ReturnData.AllNodes.Where({$_.NodeName -eq "*"})+=Import-PasswordXML -XMLFile $PasswordData
+         #$Wildcardinjection = $ReturnData.AllNodes.Where({$_.NodeName -eq "*"})
+        $returndata.AllNodes | ForEach-Object { IF ($_.NodeName -eq "*") {$Wildcardinjection= $_}}
+        $ReturnData.AllNodes = $ReturnData.AllNodes.Where{($_.NodeName -ne "*")}
         }
     Else {
+        #Create Missing Wildcard
         $Wildcardinjection = @{}
         $Wildcardinjection.NodeName = "*"
-        $Wildcardinjection+=Import-PasswordXML -XMLFile $PasswordData
-        $ReturnData.AllNodes+=$Wildcardinjection
         }
+    
+    #Merge Data
+    $Wildcardinjection+=Import-PasswordXML -XMLFile $PasswordData
+    $ReturnData.AllNodes+=$Wildcardinjection
 
     #import-csv to speed the scan
     $CSVFile = (import-csv $FileName)
