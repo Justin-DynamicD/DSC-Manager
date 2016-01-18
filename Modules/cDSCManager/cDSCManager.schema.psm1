@@ -121,6 +121,7 @@ function Update-DSCMConfigurationData
     param(
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("PullServerNodeCSV")][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("PullServerCertStore")][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml",
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationData
     )
@@ -134,18 +135,31 @@ function Update-DSCMConfigurationData
     Catch {
         Throw "Cannot find configuration data file $ConfigurationDataFile"
         }
-        
+    
+    #Load Passwords into the wildcard object to merge into ConfigData
+    IF ($ReturnData.AllNodes.Where({$_.NodeName -eq "*"})) {
+        $ReturnData.AllNodes.Where({$_.NodeName -eq "*"})+=Import-PasswordXML -XMLFile $PasswordData
+        }
+    Else {
+        $Wildcardinjection = @{}
+        $Wildcardinjection.NodeName = "*"
+        $Wildcardinjection+=Import-PasswordXML -XMLFile $PasswordData
+        $ReturnData.AllNodes+=$Wildcardinjection
+        }
+
+    #import-csv to speed the scan
+    $CSVFile = (import-csv $FileName)
         #Update ReturnData By calling other functions
         $ReturnData.AllNodes | ForEach-Object -Process {
             $CurrNode = $_.NodeName
-            If (Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName) {
+            If (($CSVFile.NodeName -contains $CurrNode) -and ($CurrNode -ne "*")) {
                 $_.NodeName = (Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $FileName)
+                If (Update-DSCMCertMapping -NodeName $CurrNode) {
+                    $_.Thumbprint = (Update-DSCMCertMapping -NodeName $CurrNode)
+                    $_.CertificateFile = $CertStore+'\'+$CurrNode+'.cer'
+                    }
                 }
-            if (Update-DSCMCertMapping -NodeName $CurrNode) {
-                $_.Thumbprint = (Update-DSCMCertMapping -NodeName $CurrNode)
-                $_.CertificateFile = $CertStore+'\'+$CurrNode+'.cer'
-                }
-            }
+            }#End Per-Object Crawl
     return $ReturnData
 }
 
@@ -343,7 +357,8 @@ Function Import-PasswordXML
 {
 [cmdletBinding()]
 param(
-    [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
+    [Parameter(Mandatory=$false)][String]$XMLFile = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml",
+    [Parameter(Mandatory=$false)][Switch]$ToSession
     )
 
     #Create sample XMLFile if it is missing
@@ -379,13 +394,22 @@ param(
         }#End Create XML If
 
     #Generate Password Variables from XMLData
-    Write-Verbose -Message "Loading Passwords into secure string variables..."
+    Write-Verbose -Message "Loading Passwords from xml..."
+    $Passwords = @{}
     $Config = [XML](Get-Content $XMLFile)
     $Config.Credentials | ForEach-Object {$_.Variable} | Where-Object {$_.Name -ne $null} | ForEach-Object {
         $SecurePass = ConvertTo-SecureString $_.Password -AsPlainText -Force
         $cred = New-Object System.Management.Automation.PSCredential $_.User, $SecurePass
-        $PSCmdlet.SessionState.PSVariable.Set($_.Name, $cred)
-        } #End Config Loop
+        If ($ToSession) {    
+            $PSCmdlet.SessionState.PSVariable.Set($_.Name, $cred)
+            }
+        Else {
+            $Passwords.add($_.Name, $cred)
+            }
+        } #End ForEach Loop
+
+    #Return Hashtable
+    If (!$ToSession) {return $Passwords}
 }
 
 #This function is to create MOF files and copy them to the Pull Server from the specific working directory
@@ -395,7 +419,6 @@ function Update-DSCMPullServer
     param(
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][String]$Configuration,
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][HashTable]$ConfigurationData,
-    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PasswordData,
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP
@@ -409,16 +432,6 @@ function Update-DSCMPullServer
     Catch {
         Throw "error loading DSC Configuration $ConfigurationFile"
         }
-    
-    If ($PasswordData) {
-        Write-Verbose -Message "Importing Passwords..."
-        Try {
-            Invoke-Expression ". Import-PasswordXML -XMLFile `$PasswordData"
-            }
-        Catch {
-            Throw "error loading passwords from file $PasswordData"
-            }
-        } #End $PasswordData
 
     #generate MOF files using Configurationdata and output to the appropriate temporary path
     Write-Verbose -Message "Generating MOF using Configurationdata and output to $WorkingPath..."

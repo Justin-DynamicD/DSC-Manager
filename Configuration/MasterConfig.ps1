@@ -15,6 +15,9 @@
         {
             Role = $Node.Role
             DomainName = $Node.DomainName
+            DCSafeModeAdministratorCred = $Node.DCSafeModeAdministratorCred
+            DCDomainCred = $Node.DCDomainCred
+            DCDNSDelegationCred = $Node.DCDNSDelegationCred
         }
     }
 
@@ -23,6 +26,7 @@
         {
             Role = $Node.Role
             DSLPath = $Node.DSLPath
+            SCCMAdministratorCredential = $Node.SCCMAdministratorCredential
         }
     }
 }
