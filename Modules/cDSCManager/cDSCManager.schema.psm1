@@ -89,7 +89,8 @@ function Update-DSCMTable
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("FileName")][String]$PullServerNodeCSV = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][Alias("CertStore")][String]$PullServerCertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationDataFile,
-    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationData
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$ConfigurationData,
+    [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
 
     #Load ConfigurationData file found into memory and execute updates
@@ -175,43 +176,45 @@ function Update-DSCMGUIDMapping
 {
     [cmdletBinding()]
     param(
-    [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
-    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
-    [switch]$Silent
+        [Parameter(Mandatory=$false)][String]$FileName = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv",
+        [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
+        [switch]$Silent
     )
 
-    If (Install-DSCMCertStores -FileName $FileName -TestOnly) {
+    If (Test-Path -Path ($FileName)) {
+        
+        #import file for modification
         $CSVFile = (import-csv $FileName)
-        If(!($CSVFile | where-object {$_.NodeName -eq $NodeName})) {
+        If($CSVFile.NodeName -notcontains $NodeName) {
             $NodeGUID = [guid]::NewGuid()
             Write-Verbose -Message "Cannot Find Node $NodeName, writing new entry with GUID $NodeGUID"
             $NewLine = "{0},{1}" -f $NodeName,$NodeGUID
             $NewLine | add-content -path $FileName
             } #End If
         Else {
-            $CSVFile | forEach-Object {
-                If (($_.NodeName -eq $NodeName) -and !$_.NodeGUID) {
-                    $NodeGUID = [guid]::NewGuid()
-                    Write-Verbose -Message "Node $NodeName was found, adding GUID $NodeGUID"
-                    $_.NodeGUID = $NodeGUID
-                    }
-                ElseIf (($_.NodeName -eq $NodeName) -and $_.NodeGUID)  {
-                    Write-Verbose -Message "All Entries present"
-                    $NodeGUID = $_.NodeGuid
-                    }
-                If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
+            If (($csvfile|where-object{$_.NodeName -eq $NodeName}).NodeGUID)  {
+                Write-Verbose -Message "All Entries present"
+                $NodeGUID = ($csvfile|where-object{$_.NodeName -eq $NodeName}).NodeGUID
+                }
+            Else {
+                $NodeGUID = [guid]::NewGuid()
+                Write-Verbose -Message "Node $NodeName was found, adding GUID $NodeGUID"
+                ($csvfile|where-object{$_.NodeName -eq $NodeName}).NodeGUID = $NodeGUID
+                }
+
+            #Write Changes back to file
+            If ($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
                 $CSVFile | Export-CSV $FileName -Delimiter ','
                 }
-                } #End ForEach
             } #End Else
-        if(!($Silent)) {
-            return,[String]$NodeGUID
-            }
         }#End File Exists
 
     Else {
         write-verbose "the file $FileName cannot be found so there is nothing to return"
         }#End File Missing
+    if(!($Silent)) {
+            return [String]$NodeGUID
+            }
 }
 
 #This function is to update and maintain the Certificate-to-host mapping to ease management
@@ -225,36 +228,35 @@ param(
     [switch]$Silent
     )
 
+    #ClearCriticalVariables
+    $Thumbprint=$null
+    $OldThumbprint=$null
+
     If (Install-DSCMCertStores -FileName $FileName -CertStore $CertStore -TestOnly) {
         $CSVFile = import-csv $FileName
+        $ControlCSVFile = $CSVFile
         
         #Check for existence of Certificate file
         $certfullpath = $CertStore+'\'+$NodeName+'.cer'
         If(Test-Path -Path ($certfullpath)) {
-            
             # X509Certificate2 object that will represent the certificate
-            $CertPrint = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-        
-            # Imports the certificate from file to x509Certificate object
+            $CertPrint = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2    
+            # Imports the certificate from file to x509Certificate object and grabs the goodies
             $certPrint.Import($Certfullpath)
-            $CSVFile | forEach-Object {
-                If (($_.NodeName -eq $NodeName) -and !($_.Thumbprint -eq $certPrint.Thumbprint)) {
-                    $_.Thumbprint = $CertPrint.Thumbprint
-                    }                  
-                }
-            }
+            $Thumbprint = $CertPrint.Thumbprint
+            }#End Found Cert
+
+        If ($csvfile.NodeName -contains $NodeName) {
+            $OldThumbprint = ($csvfile|where-object{$_.NodeName -eq $NodeName}).Thumbprint
+            IF ($OldThumbprint -ne $Thumbprint) {($csvfile|where-object{$_.NodeName -eq $NodeName}).Thumbprint = $Thumbprint}
+            }#End Node Found
 
         #If the table was updated in the previous process, save it
-        If($CSVFile -and !($CSVFile -eq (import-csv $Filename))) {
+        If($CSVFile -and !($CSVFile -ne $ControlCSVFile)) {
             $CSVFile | Export-CSV $FileName -Delimiter ','
             }
         
-        #Query the table for the nodename and grab the thumbprint if present
-        $CSVFile | forEach-Object {
-            If ($_.NodeName -eq $NodeName) {
-                $Thumbprint = $_.Thumbprint
-                }
-            }
+        #Return Data
         if(!($Silent)) {
             return,$Thumbprint
             }
@@ -273,7 +275,8 @@ function Update-DSCMModules
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
         [Parameter(Mandatory=$false)][String]$Module,
-        [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
+        [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules",
+        [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
  
     # Read the module names & versions
@@ -332,7 +335,8 @@ function Update-DSCMImportallCerts
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)][String]$CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates",
-    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName
+    [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][ValidateNotNullOrEmpty()][String]$NodeName,
+    [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
 
     If (Install-DSCMCertStores -CertStore $CertStore -TestOnly) {
@@ -428,7 +432,8 @@ function Update-DSCMPullServer
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][HashTable]$ConfigurationData,
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
-    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP,
+    [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
 
     #Load DSC Configuration into script
@@ -494,7 +499,8 @@ function Request-NodeInformation
     [cmdletBinding()]
     Param (
         [Parameter(Mandatory=$false)][string]$URL = "http://localhost:9080/PSDSCComplianceServer.svc/Status",                         
-        [Parameter(Mandatory=$false)][string]$ContentType = "application/json"
+        [Parameter(Mandatory=$false)][string]$ContentType = "application/json",
+        [Parameter(ValueFromRemainingArguments = $true)]$Splat
         )
 
     #Feedback
@@ -539,7 +545,7 @@ function Request-DSCMGUIDMapping
 
     If (Test-Path $FileName) {
         $CSVFile = (import-csv $FileName)
-        $CSVFile | ForEach-Object { if ($_.NodeGUID -eq $GUIDName) {$returnname  = $_.NodeName} }
+        $CSVFile | ForEach-Object { if ($_.NodeGUID -eq $GUIDName) {$returnname  = $_.NodeName}}
         }
     Else {
         write-verbose "the file $FileName cannot be found so there is nothing to return"
