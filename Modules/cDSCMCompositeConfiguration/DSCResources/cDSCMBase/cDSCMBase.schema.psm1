@@ -7,6 +7,14 @@ Configuration cDSCMBase
    
     Import-DSCResource -ModuleName xNetworking
 
+    LocalConfigurationManager {
+        RebootNodeIfNeeded = $true
+        AllowModuleOverwrite = $true
+        RefreshFrequencyMins = 15
+        ConfigurationModeFrequencyMins = 30
+        ConfigurationMode = "ApplyAndAutoCorrect"
+        }
+
     If ($DNSServerAddresses) {
         xDNSServerAddress  DNSCustom {
             Address = $DNSServerAddresses

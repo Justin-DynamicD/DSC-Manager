@@ -104,7 +104,7 @@ function Update-DSCMTable
 
     #Update CSVTable By calling other functions
     IF ($CompiledData) {
-        $CompiledData.AllNodes | ForEach-Object -Process {
+        $CompiledData.AllNodes | where-object {$_.NodeName -ne "*"} | ForEach-Object -Process {
             $CurrNode = $_.NodeName
             Update-DSCMGUIDMapping -NodeName $CurrNode -FileName $PullServerNodeCSV -Silent
             Update-DSCMCertMapping -NodeName $CurrNode -FileName $PullServerNodeCSV -CertStore $PullServerCertStore -Silent
