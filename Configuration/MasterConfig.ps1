@@ -29,4 +29,16 @@
             SCCMAdministratorCredential = $Node.SCCMAdministratorCredential
         }
     }
+
+    Node $AllNodes.Where{$_.Service -eq "SQL"}.NodeName {
+        cDSCMSQL SQLConfig
+        {
+            NodeName = $Node.NodeName
+            Role = $Node.Role
+            SQLServers = $Node.SqlServers
+            SQLSetupCred = $Node.SQLSetupCred
+            SQLSvcCred = $Node.SQLSvcCred
+            SQLAgtSvcCred = $Node.SQLSvcCred
+        }
+    }
 }
