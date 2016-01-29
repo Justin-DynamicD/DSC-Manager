@@ -6,9 +6,9 @@ configuration cDSCMActiveDirectory
         [Parameter(Mandatory=$true)][String]$DomainName,
         [Parameter(Mandatory=$false)][Int]$RetryCount=20,
         [Parameter(Mandatory=$false)][Int]$RetryIntervalSec=30,
-        [Parameter(Mandatory=$false)][pscredential]$DCSafeModeAdministratorCred, 
-        [Parameter(Mandatory=$false)][pscredential]$DCDomainCred,
-        [Parameter(Mandatory=$false)][pscredential]$DCDNSDelegationCred
+        [Parameter(Mandatory=$false)][System.Management.Automation.PSCredential]$DCSafeModeAdministratorCred, 
+        [Parameter(Mandatory=$false)][System.Management.Automation.PSCredential]$DCDomainCred,
+        [Parameter(Mandatory=$false)][System.Management.Automation.PSCredential]$DCDNSDelegationCred
         ) 
 
     Import-DscResource -ModuleName xActiveDirectory

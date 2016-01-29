@@ -4,7 +4,7 @@ Configuration cDSCMSCCM
     param (
         [Parameter(Mandatory=$false)][Array]$Role,
         [Parameter(Mandatory=$false)][String]$DSLPath,
-        [Parameter(Mandatory=$false)][String]$SCCMAdministratorCredential
+        [Parameter(Mandatory=$false)][System.Management.Automation.PSCredential]$SCCMAdministratorCredential
         )
 
     Import-DSCResource -ModuleName cSCCM
