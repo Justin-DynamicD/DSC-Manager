@@ -23,14 +23,14 @@ Configuration cDSCMBase
             }
         }
 
-    If (($Location -eq "Private") -and !($DNSServerAddresses)) {
-        xDNSServerAddress  DNSPrivate {
+    If (($Location -eq "PrivateLab") -and !($DNSServerAddresses)) {
+        xDNSServerAddress  DNSPrivateLab {
             Address = "192.168.1.100","192.168.1.102"
             InterfaceAlias = "Ethernet"
             AddressFamily = "IPV4"
             }
 
-        xDnsConnectionSuffix DNSuffixPrivate {
+        xDnsConnectionSuffix DNSuffixPrivateLab {
             InterfaceAlias = "Ethernet"
             ConnectionSpecificSuffix = "lab.transformingintoaservice.com"
             }
