@@ -6,7 +6,8 @@
         cDSCMBase BaseConfig
         {
             DNSServerAddresses = $Node.DNSServerAddresses
-            Location =$Node.Location
+            Location = $Node.Location
+            Thumbprint = $Node.Thumbprint
         }
     }
 

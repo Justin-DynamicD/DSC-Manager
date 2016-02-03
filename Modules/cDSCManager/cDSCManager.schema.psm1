@@ -431,8 +431,7 @@ function Update-DSCMPullServer
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][HashTable]$ConfigurationData,
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
-    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP,
-    [Parameter(ValueFromRemainingArguments = $true)]$Splat
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP
     )
 
     #Load DSC Configuration into script

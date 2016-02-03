@@ -19,17 +19,6 @@ $Parameters = @{
     PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
     }
 
-######################################################################################
-# Import DSC-Management
-######################################################################################
-if(!(Get-Module cDSCManager)) {
-    Try {
-        Import-Module cDSCManager
-        }
-    Catch {
-        Throw "Cannot load the DSC Management Tools.  Please make sure the module is present and the initial install has been run"
-        }
-    }
 
 ######################################################################################
 # Run DSC-Management functions
