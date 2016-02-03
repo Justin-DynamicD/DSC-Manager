@@ -41,6 +41,13 @@ $LabHosts = @{
             Location = 'PrivateLab'
         }
 
+        @{ 
+            NodeName = "example-01"
+            Service = 'ActiveDirectory'
+            Role = 'DC'
+            Location = 'PrivateLab'
+        }
+
         <#
         @{ 
             NodeName = "example-01"

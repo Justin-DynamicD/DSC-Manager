@@ -234,7 +234,6 @@ param(
 
     If (Install-DSCMCertStores -FileName $FileName -CertStore $CertStore -TestOnly) {
         $CSVFile = import-csv $FileName
-        $ControlCSVFile = $CSVFile
         
         #Check for existence of Certificate file
         $certfullpath = $CertStore+'\'+$NodeName+'.cer'
@@ -252,7 +251,7 @@ param(
             }#End Node Found
 
         #If the table was updated in the previous process, save it
-        If($CSVFile -and !($CSVFile -ne $ControlCSVFile)) {
+        If($OldThumbprint -ne $Thumbprint) {
             $CSVFile | Export-CSV $FileName -Delimiter ','
             }
         
