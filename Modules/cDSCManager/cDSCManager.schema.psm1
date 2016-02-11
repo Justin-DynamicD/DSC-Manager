@@ -234,7 +234,6 @@ param(
 
     If (Install-DSCMCertStores -FileName $FileName -CertStore $CertStore -TestOnly) {
         $CSVFile = import-csv $FileName
-        $ControlCSVFile = $CSVFile
         
         #Check for existence of Certificate file
         $certfullpath = $CertStore+'\'+$NodeName+'.cer'
@@ -252,7 +251,7 @@ param(
             }#End Node Found
 
         #If the table was updated in the previous process, save it
-        If($CSVFile -and !($CSVFile -ne $ControlCSVFile)) {
+        If($OldThumbprint -ne $Thumbprint) {
             $CSVFile | Export-CSV $FileName -Delimiter ','
             }
         
@@ -274,15 +273,14 @@ function Update-DSCMModules
     param
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
-        [Parameter(Mandatory=$false)][String]$Module,
+        [Parameter(Mandatory=$false)][String]$Name,
         [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules",
         [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
  
     # Read the module names & versions
-    If ($Module -and (get-module $module -listavailable)) {
-        $SourceList = (Get-ChildItem -Directory $SourceModules).Name
-        $SourceModules = (Get-item (get-module xdscmanager -listavailable).Path).Directory.Parent.Fullname
+    If ($Name -and (Test-Path $SourceModules\$Name)) {
+        $SourceList = $Name
         }
     Else {
         $SourceList = (Get-ChildItem -Directory $SourceModules).Name
@@ -290,6 +288,7 @@ function Update-DSCMModules
     foreach ($SourceModule in $SourceList) {
         write-verbose "Check module $SourceModule"
         $module = Import-Module $SourceModules\$SourceModule -PassThru
+        Write-Verbose $Module.Version
         $moduleName = $module.Name
         $version = $module.Version.ToString()
         Remove-Module $moduleName
@@ -432,8 +431,7 @@ function Update-DSCMPullServer
     [Parameter(Mandatory=$true,ValueFromPipelineByPropertyName=$true)][HashTable]$ConfigurationData,
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1",
     [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration",
-    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP,
-    [Parameter(ValueFromRemainingArguments = $true)]$Splat
+    [Parameter(Mandatory=$false,ValueFromPipelineByPropertyName=$true)][String]$WorkingPath = $env:TEMP
     )
 
     #Load DSC Configuration into script
