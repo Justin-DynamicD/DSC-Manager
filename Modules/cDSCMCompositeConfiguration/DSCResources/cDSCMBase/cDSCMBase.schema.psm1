@@ -6,7 +6,7 @@ Configuration cDSCMBase
         [Parameter(Mandatory=$true)][ValidateNotNullorEmpty()][string]$Location
         )
    
-    Import-DSCResource -ModuleName xNetworking
+    Import-DSCResource -ModuleName xNetworking, cLCMCertManager
 
     #Per Location Site Codes
     If ($Location -eq "PrivateLab") {
@@ -14,12 +14,17 @@ Configuration cDSCMBase
         $ServerURL = 'https://dsc.lab.transformingintoaservice.com:8080/PSDSCPullServer.svc'
         }
     
+    cLCMCertUpdate CertUpdateBase {
+        OutPath = "\\DSC-01\CertStore"
+        OutputName = "Computer"
+        TemplateName = "Lab Computer"
+        }
 
     xDNSServerAddress  DNSBase {
-                Address = $DNSServerAddresses
-                InterfaceAlias = "Ethernet"
-                AddressFamily = "IPV4"
-                }
+        Address = $DNSServerAddresses
+        InterfaceAlias = "Ethernet"
+        AddressFamily = "IPV4"
+        }
 
     xDnsConnectionSuffix DNSuffixBase {
         InterfaceAlias = "Ethernet"

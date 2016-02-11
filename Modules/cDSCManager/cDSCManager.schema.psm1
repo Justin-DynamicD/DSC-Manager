@@ -273,15 +273,14 @@ function Update-DSCMModules
     param
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
-        [Parameter(Mandatory=$false)][String]$Module,
+        [Parameter(Mandatory=$false)][String]$Name,
         [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules",
         [Parameter(ValueFromRemainingArguments = $true)]$Splat
     )
  
     # Read the module names & versions
-    If ($Module -and (get-module $module -listavailable)) {
-        $SourceList = (Get-ChildItem -Directory $SourceModules).Name
-        $SourceModules = (Get-item (get-module xdscmanager -listavailable).Path).Directory.Parent.Fullname
+    If ($Name -and (Test-Path $SourceModules\$Name)) {
+        $SourceList = $Name
         }
     Else {
         $SourceList = (Get-ChildItem -Directory $SourceModules).Name
@@ -289,6 +288,7 @@ function Update-DSCMModules
     foreach ($SourceModule in $SourceList) {
         write-verbose "Check module $SourceModule"
         $module = Import-Module $SourceModules\$SourceModule -PassThru
+        Write-Verbose $Module.Version
         $moduleName = $module.Name
         $version = $module.Version.ToString()
         Remove-Module $moduleName
