@@ -274,8 +274,7 @@ function Update-DSCMModules
     (
         [Parameter(Mandatory=$false)][String]$SourceModules="$env:PROGRAMFILES\WindowsPowershell\Modules",
         [Parameter(Mandatory=$false)][String]$Name,
-        [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules",
-        [Parameter(ValueFromRemainingArguments = $true)]$Splat
+        [Parameter(Mandatory=$false)][String]$PullServerModules="$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
     )
  
     # Read the module names & versions
@@ -296,7 +295,7 @@ function Update-DSCMModules
         $outputPath = Join-Path $PullServerModules $zipFilename
         if (!(Test-Path $outputPath)) {
             write-verbose "$outputPath is $zipFilename, creating zip"
-            # Courtesy of: @Neptune443 (http://blog.cosmoskey.com/powershell/desired-state-configuration-in-pull-mode-over-smb/)
+            #Courtesy of: @Neptune443 (http://blog.cosmoskey.com/powershell/desired-state-configuration-in-pull-mode-over-smb/)
             [byte[]]$data = New-Object byte[] 22
             $data[0] = 80
             $data[1] = 75
