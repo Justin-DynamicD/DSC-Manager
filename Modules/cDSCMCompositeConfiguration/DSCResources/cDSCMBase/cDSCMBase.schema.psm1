@@ -14,6 +14,8 @@ Configuration cDSCMBase
         $ServerURL = 'https://dsc.lab.transformingintoaservice.com:8080/PSDSCPullServer.svc'
         }
     
+
+    #Universal Code
     cLCMCertUpdate CertUpdateBase {
         OutPath = "\\DSC-01\CertStore"
         OutputName = "Computer"
@@ -31,6 +33,11 @@ Configuration cDSCMBase
         ConnectionSpecificSuffix = "lab.transformingintoaservice.com"
         }
          
+    WindowsFeature DOTNET35 {
+        Name = 'Net-Framework-Core'
+        Ensure = 'Present'
+        Source = '\\FS-01\Deployment\Server_2012R2\sources\SxS'
+        }
 
     LocalConfigurationManager {
         CertificateId = $Thumbprint
