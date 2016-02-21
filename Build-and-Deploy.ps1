@@ -1,37 +1,28 @@
-﻿######################################################################################
-# This is the master Build and Deploy script.
-# Common variables are splat here to call configurations and configuationdata which
-# are then used to crate all MOF files, checksums, and have the entire process
-# deployed to the Pull Server
-######################################################################################
-
+﻿#This parameter hastable contains common locations for "stuff" in order to completely build/push mof configuraitons
 $Parameters = @{
     Configuration = "MasterConfig"
     ConfigurationFile = "$env:HOMEDRIVE\DSC-Manager\Configuration\MasterConfig.ps1"
-    ConfigurationData = "LabHosts"
     ConfigurationDataFile = "$env:HOMEDRIVE\DSC-Manager\ConfigurationData\Labhosts.ps1"
-    SourceModules = "$env:PROGRAMFILES\WindowsPowershell\Modules"
-    PullServerModules = "$env:PROGRAMFILES\WindowsPowershell\DscService\Modules"
-    PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration"
-    #PullServerConfiguration = "C:\_test"
-    PullServerCertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates"
-    PullServerNodeCSV = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\dscnodes.csv"
+    #PullServerConfiguration = "$env:PROGRAMFILES\WindowsPowershell\DscService\Configuration"
+    PullServerConfiguration = "C:\_test"
+    CertStore = "$env:PROGRAMFILES\WindowsPowershell\DscService\NodeCertificates"
     PasswordData = "$env:PROGRAMFILES\WindowsPowershell\DscService\Management\passwords.xml"
     }
 
+#Import the listed ConfigurationData, then modify it with appropriate Password and Thumbprint Information
+$ConfigurationData = Invoke-Expression $Parameters.ConfigurationDataFile
+$ConfigurationData = Update-ConfigurationDataCertificates -ConfigurationData $ConfigurationData -CertStore $Parameters.CertStore
+$ConfigurationData = Update-ConfigurationDataPasswords -ConfigurationData $ConfigurationData -PasswordData $Parameters.PasswordData
 
-######################################################################################
-# Run DSC-Management functions
-######################################################################################
+#generate MOF files using Configurationdata and output to the appropriate temporary path
+$ImportConfig = ". "+$Parameters.ConfigurationFile
+$GenerateMof = $Parameters.Configuration+" -ConfigurationData `$ConfigurationData -outputpath $env:TEMP"
+Invoke-Expression $ImportConfig
+Invoke-Expression $GenerateMof
 
-#Update the CSV table with missing Server,GUID, and Thumbprint information
-[PSCustomObject]$Parameters | Update-DSCMTable
-
-#Load ConfigurationData then add thumbprint information if available for final configuration application
-$UpdatedConfigurationData = ([PSCustomObject]$Parameters | Update-DSCMConfigurationData)
-
-#Create All Configuration MOFs based on updated data and place in respective Pull Server Configuration
-[PSCustomObject]$Parameters | Update-DSCMPullServer -ConfigurationData $UpdatedConfigurationData
-
-#Update Pull Server module repo with current modules from the local repo
-#Update-DSCMModules @Parameters
+#create a checksum file for eah generated MOF
+New-DSCCheckSum -ConfigurationPath $env:TEMP -OutPath $env:TEMP -Force
+    
+#All Generation is complete, now copy it all to the Pull Server
+$SourceFiles = $env:TEMP + "\*.mof*"
+Move-Item $SourceFiles -Destination $Parameters.PullServerConfiguration -Force

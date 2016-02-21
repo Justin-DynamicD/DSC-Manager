@@ -11,7 +11,7 @@ configuration cDSCMActiveDirectory
         [Parameter(Mandatory=$false)][System.Management.Automation.PSCredential]$DCDNSDelegationCred
         ) 
 
-    Import-DscResource -ModuleName xActiveDirectory
+    Import-DscResource -ModuleName @{ModuleName="xActiveDirectory";ModuleVersion="2.9.0.0"}
 
     If ($Role -contains "PDC") {
         WindowsFeature ADDSInstall 

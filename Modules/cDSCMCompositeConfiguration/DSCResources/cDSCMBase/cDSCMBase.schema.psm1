@@ -6,14 +6,25 @@ Configuration cDSCMBase
         [Parameter(Mandatory=$true)][ValidateNotNullorEmpty()][string]$Location
         )
    
-    Import-DSCResource -ModuleName xNetworking, cLCMCertManager
+    Import-DSCResource -ModuleName @{ModuleName="xNetworking";ModuleVersion="2.7.0.0"}, cLCMCertManager, PSDesiredStateConfiguration
 
     #Per Location Site Codes
     If ($Location -eq "PrivateLab") {
         If (!$DNSServerAddresses) {$DNSServerAddresses = @('192.168.1.100','192.168.1.102')}
         $ServerURL = 'https://dsc.lab.transformingintoaservice.com:8080/PSDSCPullServer.svc'
         }
-    
+
+    #LCM Code
+    LocalConfigurationManager {
+        CertificateId = $Thumbprint
+        RebootNodeIfNeeded = $true
+        AllowModuleOverwrite = $true
+        RefreshMode = "Pull"
+        RefreshFrequencyMins = 30
+        ConfigurationModeFrequencyMins = 30
+        ConfigurationMode = "ApplyAndAutoCorrect"
+        DownloadManagerCustomData = @{ServerURL = $ServerURL}
+        }
 
     #Universal Code
     cLCMCertUpdate CertUpdateBase {
@@ -37,17 +48,6 @@ Configuration cDSCMBase
         Name = 'Net-Framework-Core'
         Ensure = 'Present'
         Source = '\\FS-01\Deployment\Server_2012R2\sources\SxS'
-        }
-
-    LocalConfigurationManager {
-        CertificateId = $Thumbprint
-        RebootNodeIfNeeded = $true
-        AllowModuleOverwrite = $true
-        RefreshMode = "Pull"
-        RefreshFrequencyMins = 15
-        ConfigurationModeFrequencyMins = 30
-        ConfigurationMode = "ApplyAndAutoCorrect"
-        DownloadManagerCustomData = @{ServerURL = $ServerURL}
         }
 
     }

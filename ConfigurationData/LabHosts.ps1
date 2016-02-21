@@ -57,3 +57,4 @@ $LabHosts = @{
         #>
     ); 
 }
+return $LabHosts

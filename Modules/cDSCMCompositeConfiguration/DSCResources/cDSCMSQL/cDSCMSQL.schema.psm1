@@ -13,7 +13,7 @@ Configuration cDSCMSQL
         [Parameter(Mandatory=$true)][System.Management.Automation.PSCredential]$SQLAgtSvcCred
         ) 
 
-    Import-DscResource -Module xSQLServer
+    Import-DscResource -Module @{ModuleName="xSQLServer";ModuleVersion="1.4.0.0"}
  
     #Prerequisite Installs
     WindowsFeature NetFramework35Core
