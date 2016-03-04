@@ -11,6 +11,7 @@ $LabHosts = @{
             Service = 'ActiveDirectory'
             Role = 'PDC'
             DNSServerAddresses = "192.168.1.102","127.0.0.1"
+            PSDscAllowDomainUser = $true
             Location = 'PrivateLab'
         },
 
@@ -19,6 +20,7 @@ $LabHosts = @{
             Service = 'ActiveDirectory'
 	        Role = 'DC'
             DNSServerAddresses = "192.168.1.100","127.0.0.1"
+            PSDscAllowDomainUser = $true
             Location = 'PrivateLab'
         },
 

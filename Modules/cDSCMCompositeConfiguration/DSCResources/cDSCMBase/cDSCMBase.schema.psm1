@@ -6,7 +6,7 @@ Configuration cDSCMBase
         [Parameter(Mandatory=$true)][ValidateNotNullorEmpty()][string]$Location
         )
    
-    Import-DSCResource -ModuleName @{ModuleName="xNetworking";ModuleVersion="2.7.0.0"}, cLCMCertManager, PSDesiredStateConfiguration
+    Import-DSCResource -ModuleName @{ModuleName="xNetworking";ModuleVersion="2.7.0.0"}, @{ModuleName="cLCMCertManager";ModuleVersion="1.0.2"}, PSDesiredStateConfiguration
 
     #Per Location Site Codes
     If ($Location -eq "PrivateLab") {
@@ -21,7 +21,7 @@ Configuration cDSCMBase
         AllowModuleOverwrite = $true
         RefreshMode = "Pull"
         RefreshFrequencyMins = 30
-        ConfigurationModeFrequencyMins = 30
+        ConfigurationModeFrequencyMins = 60
         ConfigurationMode = "ApplyAndAutoCorrect"
         DownloadManagerCustomData = @{ServerURL = $ServerURL}
         }
